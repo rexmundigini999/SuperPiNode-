@@ -1,0 +1,172 @@
+// SuperPyNode Application (Consolidated File - All Dependencies, Variables, and Settings)
+
+require('dotenv').config();
+const express = require('express');
+const Web3 = require('web3');
+const mongoose = require('mongoose');
+const redis = require('redis');
+const socketIO = require('socket.io');
+const http = require('http');
+
+// Set up environment variables
+const INFURA_PROJECT_ID = process.env.INFURA_PROJECT_ID; // Infura project ID for Ethereum network
+const MONGO_URI = process.env.MONGO_URI; // MongoDB URI for connecting to MongoDB database
+
+// Set up Web3 (Ethereum interaction)
+const web3 = new Web3(`https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`);
+
+// Express setup (for API and serving HTML)
+const app = express();
+const server = http.createServer(app);
+const io = socketIO(server);
+
+// Redis setup (caching for performance)
+const redisClient = redis.createClient({ host: '127.0.0.1', port: 6379 });
+
+// MongoDB setup (for node status and other data storage)
+const nodeStatusSchema = new mongoose.Schema({
+  nodeID: { type: String, required: true },
+  contractProcessed: { type: Number, default: 0 },
+  networkHealth: { type: String, default: 'healthy' },
+  lastUpdated: { type: Date, default: Date.now },
+});
+
+const NodeStatus = mongoose.model('NodeStatus', nodeStatusSchema);
+
+// Server settings
+const port = process.env.PORT || 4000;
+
+// Middleware for parsing JSON and URL-encoded data
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Set up cache functions (using Redis)
+const setCache = (key, value, ttl = 3600) => {
+  redisClient.setex(key, ttl, JSON.stringify(value), (err) => {
+    if (err) console.error('Error setting cache:', err);
+  });
+};
+
+const getCache = (key, callback) => {
+  redisClient.get(key, (err, data) => {
+    if (err) console.error('Error getting cache:', err);
+    callback(JSON.parse(data));
+  });
+};
+
+// MongoDB connection setup
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('MongoDB connected successfully'))
+  .catch((err) => console.error('MongoDB connection error:', err));
+
+// Helper function for getting balance from Ethereum address
+const getBalance = async (address) => {
+  const balance = await web3.eth.getBalance(address);
+  return web3.utils.fromWei(balance, 'ether');
+};
+
+// Helper function for interacting with Ethereum smart contracts
+const executeSmartContract = async (contractAddress, abi, method, params) => {
+  const contract = new web3.eth.Contract(abi, contractAddress);
+  try {
+    const result = await contract.methods[method](...params).call();
+    return result;
+  } catch (error) {
+    console.error('Error executing contract method:', error);
+  }
+};
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('New client connected:', socket.id);
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+
+  socket.on('smartContractExecution', (data) => {
+    console.log('Processing smart contract:', data);
+  });
+
+  socket.on('multicastMessage', (message) => {
+    console.log('Multicast message received:', message);
+  });
+
+  setInterval(() => {
+    socket.emit('networkUpdate', { message: 'Node health update', timestamp: new Date() });
+  }, 1000);
+});
+
+// Frontend - Serve a simple HTML page to display node information
+app.get('/', (req, res) => {
+  res.send(`
+    <html>
+      <head>
+        <title>SuperPyNode - Mesh Network</title>
+        <style>
+          body { font-family: Arial, sans-serif; }
+          h1 { color: purple; }
+          p { font-size: 16px; }
+          #health { color: gold; }
+        </style>
+      </head>
+      <body>
+        <h1>SuperPyNode Mesh Network</h1>
+        <p>Node health: <span id="health">loading...</span></p>
+        <p>Smart Contract Processing: <span id="processing">0</span></p>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
+        <script>
+          const socket = io();
+          socket.on('networkUpdate', (data) => {
+            document.getElementById('health').textContent = data.message;
+          });
+
+          socket.on('smartContractExecution', (data) => {
+            document.getElementById('processing').textContent = data.count;
+          });
+        </script>
+      </body>
+    </html>
+  `);
+});
+
+// API to check balance of Ethereum address
+app.get('/balance/:address', async (req, res) => {
+  const balance = await getBalance(req.params.address);
+  res.json({ address: req.params.address, balance });
+});
+
+// API to execute smart contract method
+app.post('/contract', async (req, res) => {
+  const { contractAddress, abi, method, params } = req.body;
+  const result = await executeSmartContract(contractAddress, abi, method, params);
+  res.json({ result });
+});
+
+// Start the server
+server.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
+
+// Periodic node status updates and health checks
+setInterval(() => {
+  const nodeStatus = new NodeStatus({
+    nodeID: 'node1',
+    contractProcessed: Math.floor(Math.random() * 100),
+    networkHealth: 'healthy',
+  });
+
+  nodeStatus.save()
+    .then((status) => {
+      console.log('Node status saved:', status);
+      setCache('nodeStatus', status);
+    })
+    .catch((err) => console.error('Error saving node status:', err));
+}, 5000);
+
+// Example of blockchain interaction (Ethereum balance check)
+(async () => {
+  const address = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e'; // Example Ethereum address
+  const balance = await getBalance(address);
+  console.log('Balance:', balance); // Log the balance of the address
+})();
