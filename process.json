@@ -1,13 +1,24 @@
+{
+  "apps": [
     {
-      "name"        : "worker",
-      "script"      : "./index.js",
-      "instances"   : 1,
-      "merge_logs"  : true,
-      "log_date_format" : "YYYY-MM-DD HH:mm Z",
+      "name": "superpynode",
+      "script": "index.js",
+      "instances": 1,
+      "autorestart": true,
       "watch": true,
-      "watch_options": {
-        "followSymlinks": true,
-        "usePolling"   : true,
-        "interval"    : 5
+      "max_memory_restart": "1G",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": 4000,
+        "INFURA_API_KEY": "your-infura-project-id", 
+        "PRIVATE_KEY": "your-private-key"
+      },
+      "env_production": {
+        "NODE_ENV": "production",
+        "PORT": 4000,
+        "INFURA_API_KEY": "your-infura-project-id", 
+        "PRIVATE_KEY": "your-private-key"
       }
     }
+  ]
+}
