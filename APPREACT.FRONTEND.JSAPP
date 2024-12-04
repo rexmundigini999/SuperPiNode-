@@ -1,0 +1,56 @@
+import React, { useEffect, useState } from 'react';
+import './App.css';
+import { Line } from 'react-chartjs-2';
+import { Chart as ChartJS } from 'chart.js';
+import { io } from 'socket.io-client';
+import { ForceGraph3D } from 'react-force-graph';
+
+const socket = io('http://localhost:4000'); // Backend server address
+
+function App() {
+  const [networkData, setNetworkData] = useState([]);
+  const [smartContractData, setSmartContractData] = useState([]);
+
+  useEffect(() => {
+    socket.on('smartContractResult', (result) => {
+      setSmartContractData(result);
+    });
+
+    socket.on('networkUpdate', (data) => {
+      setNetworkData(data);
+    });
+  }, []);
+
+  const chartData = {
+    labels: ['Node 1', 'Node 2', 'Node 3'],
+    datasets: [
+      {
+        label: 'Smart Contracts Processed',
+        data: [65, 59, 80],
+        fill: false,
+        backgroundColor: 'gold',
+        borderColor: 'purple',
+        tension: 0.1
+      }
+    ]
+  };
+
+  return (
+    <div className="App">
+      <h1>SuperPyNode Mesh Network</h1>
+      <ForceGraph3D
+        graphData={networkData}
+        nodeAutoColorBy="group"
+        linkWidth={3}
+        nodeRelSize={10}
+      />
+      <Line data={chartData} />
+      <div>
+        <h2>Smart Contract Results</h2>
+        <p>{smartContractData}</p>
+      </div>
+    </div>
+  );
+}
+
+export default App;
