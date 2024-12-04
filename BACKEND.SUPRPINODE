@@ -1,0 +1,25 @@
+{
+  "name": "SuperPyNode",
+  "version": "1.0.0",
+  "description": "SuperPyNode backend for decentralized smart contract processing, consensus, and multicast networking.",
+  "dependencies": {
+    "express": "^4.17.1",
+    "web3": "^1.6.0",
+    "mongoose": "^5.11.15",
+    "socket.io": "^4.1.1",
+    "node-fetch": "^2.6.1",
+    "jsonwebtoken": "^8.5.1",
+    "crypto": "npm:crypto-browserify",
+    "os": "latest",
+    "redis": "^3.0.2",
+    "multicast-dns": "^6.3.1"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "mocha tests/",
+    "deploy": "node deploy.js"
+  },
+  "main": "server.js",
+  "author": "SuperPyNode Team",
+  "license": "MIT"
+}
